@@ -1,0 +1,11 @@
+{
+    "vertexCount": 18096,
+    "frameCount": 142,
+    "fps": 10,
+    "texWidth": 288,
+    "texHeight": 9048,
+    "columns": 2,
+    "frameStride": 144,
+    "storeDelta": true,
+    "normalsCompressed": true
+}
