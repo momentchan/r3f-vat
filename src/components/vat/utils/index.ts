@@ -112,3 +112,56 @@ export function calculateVATFrame(
   }
   return currentTime * (metaData.fps * speed) % metaData.frameCount
 }
+
+/**
+ * Extract geometry from a THREE.Group/Scene
+ */
+export function extractGeometryFromScene(scene: THREE.Group): THREE.BufferGeometry | null {
+  let geometry: THREE.BufferGeometry | null = null
+  
+  scene.traverse((object: any) => {
+    if (object.isMesh && object.geometry && !geometry) {
+      geometry = object.geometry.clone()
+    }
+  })
+  
+  return geometry
+}
+
+/**
+ * Create VAT InstancedMesh
+ */
+export function createVATInstancedMesh(
+  geometry: THREE.BufferGeometry,
+  posTex: THREE.Texture,
+  nrmTex: THREE.Texture | null,
+  envMap: THREE.Texture | null,
+  metaData: VATMeta,
+  materialControls: any,
+  instanceCount: number,
+  useDepthMaterial: boolean
+): {
+  instancedMesh: THREE.InstancedMesh
+  materials: CustomShaderMaterial[]
+  depthInstancedMesh?: THREE.InstancedMesh
+} {
+  ensureUV2ForVAT(geometry, metaData)
+
+  const vatMaterial = createVATMaterial(posTex, nrmTex, envMap, metaData, materialControls)
+  const instancedMesh = new THREE.InstancedMesh(geometry, vatMaterial, instanceCount)
+  
+  instancedMesh.frustumCulled = false
+  instancedMesh.castShadow = true
+  instancedMesh.receiveShadow = true
+
+  const materials: CustomShaderMaterial[] = [vatMaterial]
+  let depthInstancedMesh: THREE.InstancedMesh | undefined
+
+  if (useDepthMaterial) {
+    const vatDepthMaterial = createVATDepthMaterial(posTex, nrmTex, metaData)
+    depthInstancedMesh = new THREE.InstancedMesh(geometry, vatDepthMaterial, instanceCount)
+    materials.push(vatDepthMaterial)
+  }
+
+  return { instancedMesh, materials, depthInstancedMesh }
+}

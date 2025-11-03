@@ -1,5 +1,6 @@
 // Main exports for VAT components
 export { VATMesh } from './VATMesh'
+export { VATInstancedMesh } from './VATInstancedMesh'
 
 // Hooks
 export { useVATPreloader } from './VATPreloader'
@@ -10,13 +11,16 @@ export type {
   VATMaterialControls,
   VATMeshProps,
 } from './types'
+export type { VATInstancedMeshProps } from './VATInstancedMesh'
 
 // Utility exports
 export {
   ensureUV2ForVAT,
   calculateVATFrame,
   setupVATMaterials,
-  cloneAndSetupVATScene
+  cloneAndSetupVATScene,
+  extractGeometryFromScene,
+  createVATInstancedMesh
 } from './utils'
 
 // Material exports
