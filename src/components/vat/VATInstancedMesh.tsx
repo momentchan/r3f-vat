@@ -27,6 +27,7 @@ export const VATInstancedMesh = forwardRef<THREE.Group, VATInstancedMeshProps>(f
   rotations,
   scales,
   shaders,
+  customUniforms,
   meshConfig,
   materialConfig,
   ...rest

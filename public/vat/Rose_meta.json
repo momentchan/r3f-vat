@@ -1,9 +1,9 @@
 {
-    "vertexCount": 6144,
+    "vertexCount": 2964,
     "frameCount": 340,
     "fps": 24,
     "texWidth": 342,
-    "texHeight": 6144,
+    "texHeight": 2964,
     "columns": 1,
     "frameStride": 342,
     "storeDelta": true,

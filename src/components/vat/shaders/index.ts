@@ -7,8 +7,11 @@ uniform float uTexW;
 uniform int uStoreDelta;
 uniform int uNormalsCompressed;
 
+attribute vec4 color;
+
 varying vec2 vUv;
 varying vec2 vUv2;
+varying vec3 vColor;
 
 vec3 octDecode(vec2 e) {
   e = e * 2.0 - 1.0;
@@ -60,6 +63,7 @@ void main() {
   csm_Normal = VAT_nrm(uFrame);
   vUv = uv;
   vUv2 = uv2;
+  vColor = color.rgb;
 }
 `
 

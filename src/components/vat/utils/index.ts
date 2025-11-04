@@ -42,18 +42,19 @@ export function setupVATMaterials(
   materialControls: any,
   useDepthMaterial: boolean,
   shaderOverrides?: VATShaderOverrides,
+  customUniforms?: Record<string, any>,
   meshConfig?: VATMeshConfig
 ): CustomShaderMaterial[] {
   const materials: CustomShaderMaterial[] = []
 
   ensureUV2ForVAT(mesh.geometry, metaData)
 
-  const vatMaterial = createVATMaterial(posTex, nrmTex, envMap, metaData, materialControls, shaderOverrides)
+  const vatMaterial = createVATMaterial(posTex, nrmTex, envMap, metaData, materialControls, shaderOverrides, customUniforms)
   mesh.material = vatMaterial
   materials.push(vatMaterial)
 
   if (useDepthMaterial) {
-    const vatDepthMaterial = createVATDepthMaterial(posTex, nrmTex, metaData, shaderOverrides)
+    const vatDepthMaterial = createVATDepthMaterial(posTex, nrmTex, metaData, shaderOverrides, customUniforms)
     mesh.customDepthMaterial = vatDepthMaterial
     materials.push(vatDepthMaterial)
   }
@@ -81,6 +82,7 @@ export function cloneAndSetupVATScene(
   materialControls: any,
   useDepthMaterial: boolean,
   shaderOverrides?: VATShaderOverrides,
+  customUniforms?: Record<string, any>,
   meshConfig?: VATMeshConfig
 ): {
   vatScene: THREE.Group
@@ -95,7 +97,7 @@ export function cloneAndSetupVATScene(
     if (object.isMesh) {
       const mesh = object as THREE.Mesh
       const meshMaterials = setupVATMaterials(
-        mesh, posTex, nrmTex, envMap, metaData, materialControls, useDepthMaterial, shaderOverrides, meshConfig
+        mesh, posTex, nrmTex, envMap, metaData, materialControls, useDepthMaterial, shaderOverrides, customUniforms, meshConfig
       )
       materials.push(...meshMaterials)
       vatMesh = mesh
@@ -147,7 +149,8 @@ export function createVATInstancedMesh(
   materialControls: any,
   instanceCount: number,
   useDepthMaterial: boolean,
-  shaderOverrides?: VATShaderOverrides
+  shaderOverrides?: VATShaderOverrides,
+  customUniforms?: Record<string, any>
 ): {
   instancedMesh: THREE.InstancedMesh
   materials: CustomShaderMaterial[]
@@ -155,7 +158,7 @@ export function createVATInstancedMesh(
 } {
   ensureUV2ForVAT(geometry, metaData)
 
-  const vatMaterial = createVATMaterial(posTex, nrmTex, envMap, metaData, materialControls, shaderOverrides)
+  const vatMaterial = createVATMaterial(posTex, nrmTex, envMap, metaData, materialControls, shaderOverrides, customUniforms)
   const instancedMesh = new THREE.InstancedMesh(geometry, vatMaterial, instanceCount)
   
   instancedMesh.frustumCulled = false
@@ -166,7 +169,7 @@ export function createVATInstancedMesh(
   let depthInstancedMesh: THREE.InstancedMesh | undefined
 
   if (useDepthMaterial) {
-    const vatDepthMaterial = createVATDepthMaterial(posTex, nrmTex, metaData, shaderOverrides)
+    const vatDepthMaterial = createVATDepthMaterial(posTex, nrmTex, metaData, shaderOverrides, customUniforms)
     depthInstancedMesh = new THREE.InstancedMesh(geometry, vatDepthMaterial, instanceCount)
     materials.push(vatDepthMaterial)
   }

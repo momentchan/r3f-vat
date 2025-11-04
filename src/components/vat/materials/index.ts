@@ -10,7 +10,8 @@ export function createVATMaterial(
   envMap: THREE.Texture | null,
   meta: VATMeta,
   materialProps: VATMaterialControls,
-  shaderOverrides?: VATShaderOverrides
+  shaderOverrides?: VATShaderOverrides,
+  customUniforms?: Record<string, any>
 ): CustomShaderMaterial {
   const uniforms = {
     uPosTex: { value: posTex },
@@ -20,7 +21,7 @@ export function createVATMaterial(
     uTexW: { value: meta.texWidth },
     uStoreDelta: { value: meta.storeDelta ? 1 : 0 },
     uNormalsCompressed: { value: meta.normalsCompressed ? 1 : 0 },
-    ...(shaderOverrides?.customUniforms || {})
+    ...(customUniforms || {})
   }
 
   // Only pass valid Three.js material properties
@@ -62,7 +63,8 @@ export function createVATDepthMaterial(
   posTex: THREE.Texture,
   nrmTex: THREE.Texture | null,
   meta: VATMeta,
-  shaderOverrides?: VATShaderOverrides
+  shaderOverrides?: VATShaderOverrides,
+  customUniforms?: Record<string, any>
 ): CustomShaderMaterial {
   const uniforms = {
     uPosTex: { value: posTex },
@@ -72,7 +74,7 @@ export function createVATDepthMaterial(
     uTexW: { value: meta.texWidth },
     uStoreDelta: { value: meta.storeDelta ? 1 : 0 },
     uNormalsCompressed: { value: meta.normalsCompressed ? 1 : 0 },
-    ...(shaderOverrides?.customUniforms || {})
+    ...(customUniforms || {})
   }
 
   return new CustomShaderMaterial({

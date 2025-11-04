@@ -17,6 +17,7 @@ export const VATMesh = forwardRef<THREE.Group, VATMeshProps>(function VATMesh({
   frameRatio,
   id,
   shaders,
+  customUniforms,
   meshConfig,
   materialConfig,
   ...rest
@@ -54,7 +55,26 @@ export const VATMesh = forwardRef<THREE.Group, VATMeshProps>(function VATMesh({
   const vatSceneRef = useRef<THREE.Group | null>(null)
   const { scene: r3fScene } = useThree()
 
+  // Memoize shader code strings to detect when shader code changes (not uniforms)
+  // Extract shader code strings to stable references
+  const vertexShaderCode = shaders?.vertexShader
+  const fragmentShaderCode = shaders?.fragmentShader
+  const depthVertexShaderCode = shaders?.depthVertexShader
+  
+  // Create a stable key that only changes when shader CODE changes (not uniforms)
+  const shaderCodeKey = useMemo(() => {
+    const key = `${vertexShaderCode || ''}|${fragmentShaderCode || ''}|${depthVertexShaderCode || ''}`
+    return key
+  }, [vertexShaderCode, fragmentShaderCode, depthVertexShaderCode])
+
+  // Stabilize meshConfig to prevent unnecessary recreations
+  const meshConfigRef = useRef(meshConfig)
+  useEffect(() => {
+    meshConfigRef.current = meshConfig
+  }, [meshConfig])
+
   // Create materials and clone scene
+  // Only recreate when shader CODE changes, not when uniforms change
   useEffect(() => {
     // Remove old scene if exists
     if (vatSceneRef.current && groupRef.current) {
@@ -62,7 +82,7 @@ export const VATMesh = forwardRef<THREE.Group, VATMeshProps>(function VATMesh({
     }
 
     const { vatScene, materials } = cloneAndSetupVATScene(
-      scene, posTex, nrmTex, r3fScene.environment, metaData, materialControls, useDepthMaterial, shaders, meshConfig
+      scene, posTex, nrmTex, r3fScene.environment, metaData, materialControls, useDepthMaterial, shaders, customUniforms, meshConfigRef.current
     )
 
     materialsRef.current = materials
@@ -71,13 +91,49 @@ export const VATMesh = forwardRef<THREE.Group, VATMeshProps>(function VATMesh({
     if (groupRef.current) {
       groupRef.current.add(vatScene)
     }
+    console.log('VATMesh re-created')
 
     return () => {
       if (vatSceneRef.current && groupRef.current) {
         groupRef.current.remove(vatSceneRef.current)
       }
     }
-  }, [scene, posTex, nrmTex, metaData, useDepthMaterial, shaders, meshConfig])
+  }, [scene, posTex, nrmTex, metaData, useDepthMaterial, shaderCodeKey])
+
+  // Update custom uniforms when they change (without recreating scene)
+  useEffect(() => {
+    if (!customUniforms) return
+
+    for (const material of materialsRef.current) {
+      if (material.uniforms) {
+        // Update custom uniforms
+        for (const [key, uniform] of Object.entries(customUniforms)) {
+          if (material.uniforms[key] && uniform && typeof uniform === 'object' && 'value' in uniform) {
+            const existingUniform = material.uniforms[key]
+            const newValue = uniform.value
+
+            // Handle THREE.Color
+            if (newValue?.isColor && existingUniform.value?.isColor) {
+              existingUniform.value.copy(newValue)
+            }
+            // Handle THREE.Vector3
+            else if (newValue?.isVector3 && existingUniform.value?.isVector3) {
+              existingUniform.value.copy(newValue)
+            }
+            // Handle THREE.Texture
+            else if (newValue instanceof THREE.Texture) {
+              existingUniform.value = newValue
+            }
+            // Handle primitive values (numbers, arrays, etc.)
+            else {
+              existingUniform.value = newValue
+            }
+          }
+        }
+        material.needsUpdate = true
+      }
+    }
+  }, [customUniforms])
 
   // Update materials when controls change (without recreating scene)
   useEffect(() => {

@@ -46,12 +46,11 @@ export interface CommonVATProps {
   id?: string | number
 }
 
-// Shader override interface
+// Shader override interface (only shader code, no uniforms)
 export interface VATShaderOverrides {
   vertexShader?: string
   fragmentShader?: string
   depthVertexShader?: string
-  customUniforms?: Record<string, any>
 }
 
 // Mesh configuration interface
@@ -71,6 +70,7 @@ export interface VATMeshProps extends CommonVATProps {
   scale?: number | [number, number, number]
   frameRatio?: number
   shaders?: VATShaderOverrides
+  customUniforms?: Record<string, any>
   meshConfig?: VATMeshConfig
   materialConfig?: Partial<VATMaterialControls>
 }
