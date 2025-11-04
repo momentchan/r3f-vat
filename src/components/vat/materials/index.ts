@@ -2,6 +2,10 @@ import * as THREE from 'three'
 import CustomShaderMaterial from 'three-custom-shader-material/vanilla'
 import { VATMeta, VATMaterialControls, VATShaderOverrides } from '../types'
 import { VAT_VERTEX_SHADER, VAT_FRAGMENT_SHADER } from '../shaders'
+import { suppressCSMWarnings } from '../utils/suppressCSMWarnings'
+
+// Suppress harmless CSM warnings when materials are created
+suppressCSMWarnings()
 
 // Create VAT material with custom shaders
 export function createVATMaterial(
@@ -54,6 +58,7 @@ export function createVATMaterial(
     uniforms,
     envMap: envMap,
     side: THREE.DoubleSide,
+    silent: true,
     ...threeJsMaterialProps,
   })
 }
