@@ -38,11 +38,34 @@ export function useVATMaterialControls(
   label: string,
   materialConfig?: Partial<typeof DEFAULT_VAT_MATERIAL>
 ) {
-  const levaControls = useControls(label, LEVA_MATERIAL_CONTROLS, { collapsed: true })
+  // Merge materialConfig into control definitions as initial values
+  const controlsWithInitials = useMemo(() => {
+    if (!materialConfig) return LEVA_MATERIAL_CONTROLS
+
+    const merged: Record<string, any> = { ...LEVA_MATERIAL_CONTROLS }
+    for (const [key, value] of Object.entries(materialConfig)) {
+      if (key in merged) {
+        const control = merged[key]
+        if (typeof control === 'object' && control !== null && 'value' in control) {
+          // Merge into existing control object
+          merged[key] = {
+            ...control,
+            value,
+          }
+        } else {
+          // Simple value override
+          merged[key] = value
+        }
+      }
+    }
+    return merged
+  }, [materialConfig])
+
+  const levaControls = useControls(label, controlsWithInitials, { collapsed: true })
 
   const materialControls = useMemo(
-    () => ({ ...DEFAULT_VAT_MATERIAL, ...levaControls, ...materialConfig }),
-    [levaControls, materialConfig]
+    () => ({ ...DEFAULT_VAT_MATERIAL, ...levaControls }),
+    [levaControls]
   )
 
   return materialControls

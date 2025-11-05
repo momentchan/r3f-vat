@@ -8,6 +8,8 @@ import { VATInstancedMesh } from "./vat/VATInstancedMesh";
 import { useEffect, useMemo } from "react";
 import { useControls } from "leva";
 import * as THREE from "three";
+import Effects from "./Effects";
+import blending from "@packages/r3f-gist/shaders/cginc/math/blending.glsl"
 
 export default function Scene() {
     const { scene, posTex, nrmTex, meta, isLoaded } = useVATPreloader(
@@ -46,6 +48,11 @@ export default function Scene() {
     }, [count])
 
     const petalTex = useTexture('/textures/Rose Petal DIff.png')
+    petalTex.colorSpace = THREE.SRGBColorSpace
+
+    const outlineTex = useTexture('/textures/Rose Outline.png')
+
+    const normalMapTex = useTexture('/textures/Rose Petal Normal.png')
 
     // Leva controls for VAT custom uniforms
     const vatUniforms = useControls('VAT.Uniforms', {
@@ -55,60 +62,79 @@ export default function Scene() {
 
     const materialConfig = useMemo(() => ({
         roughness: 1,
-        metalness: 0,
+        metalness: 0.05,
         clearcoat: 0,
+        sheen: 0,
     }), [])
+    
+    const customUniforms = useMemo(() => ({
+        uColor: { value: new THREE.Vector3(1.0, 0.0, 0.0) },
+        uLeafColor: { value: new THREE.Color(vatUniforms.uLeafColor) },
+        uStemColor: { value: new THREE.Color(vatUniforms.uStemColor) },
+        uPetalTex: { value: petalTex },
+        uOutlineTex: { value: outlineTex }
+    }), [petalTex, vatUniforms.uLeafColor, vatUniforms.uStemColor, outlineTex])
+
 
     // Memoize shader code separately - this should never change
     const shaders = useMemo(() => ({
         fragmentShader: /* glsl */ `
+            ${blending}
+
             uniform vec3 uColor;
             uniform vec3 uLeafColor;
             uniform vec3 uStemColor;
             varying vec2 vUv;
             varying vec2 vUv2;
-            varying vec3 vColor; // Vertex color from vertex shader
+            varying vec3 vColor;
             uniform sampler2D uPetalTex;
-            
+            uniform sampler2D uOutlineTex;
+
             void main() {
                 vec2 uv = vUv;
                 uv.x = (uv.x - 0.5) * 0.8 + 0.5;
-                vec4 texColor = texture2D(uPetalTex, uv);
-                
+                vec4 petalCol = texture2D(uPetalTex, uv);
+                vec4 outline = texture2D(uOutlineTex, vUv);
+
                 float epsilon = 0.05;
-                float leafMask = step(abs(vColor.r - 0.0), epsilon);
                 float petalMask = step(abs(vColor.r - 0.7), epsilon);
+                float leafMask = step(abs(vColor.r - 0.0), epsilon);
                 float stemMask = step(abs(vColor.r - 1.0), epsilon);
                 
-                vec3 finalColor = texColor.rgb * petalMask + uLeafColor * leafMask + uStemColor * stemMask;
-                
-                csm_DiffuseColor = vec4(finalColor, texColor.a);
+                petalCol.rgb = mix(HSVShift(petalCol.rgb, vec3(0.0, 0.0, -.1)), petalCol.rgb, outline.rgb);
+
+
+                vec3 finalColor = petalCol.rgb * petalMask + uLeafColor * leafMask + uStemColor * stemMask;
+
+                csm_DiffuseColor = vec4(finalColor, petalCol.a);
             }
         `
     }), [])
 
-    // Only uniforms change when controls change
-    const customUniforms = useMemo(() => ({
-        uColor: { value: new THREE.Vector3(1.0, 0.0, 0.0) },
-        uLeafColor: { value: new THREE.Color(vatUniforms.uLeafColor) },
-        uStemColor: { value: new THREE.Color(vatUniforms.uStemColor) },
-        uPetalTex: { value: petalTex }
-    }), [petalTex, vatUniforms.uLeafColor, vatUniforms.uStemColor])
 
     return (
         <>
             <color attach="background" args={['#000000']} />
             <Lights />
             <EnvironmentSetup />
+            {/* <fogExp2 attach="fog" args={['#000000', 0.05]} /> */}
+            <Effects />
 
             <mesh rotation-x={-Math.PI / 2} receiveShadow>
                 <planeGeometry args={[10, 10]} />
                 <meshStandardMaterial color="white" />
             </mesh>
 
+            {/* <mesh castShadow receiveShadow>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshStandardMaterial color="white" />
+            </mesh> */}
+
             <CameraControls makeDefault />
 
             <CanvasCapture />
+
+
 
 
             {isLoaded && scene && (
@@ -134,6 +160,7 @@ export default function Scene() {
                         nrmTex={nrmTex}
                         metaData={meta}
                         count={count}
+                        frameRatio={0.5}
                         positions={positions}
                         rotations={rotations}
                         scales={scales}
