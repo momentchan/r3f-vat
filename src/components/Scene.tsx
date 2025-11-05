@@ -53,6 +53,8 @@ export default function Scene() {
     const outlineTex = useTexture('/textures/Rose Outline.png')
 
     const normalMapTex = useTexture('/textures/Rose Petal Normal.png')
+    normalMapTex.repeat.set(0.8, 1)
+    normalMapTex.offset.set(0.1, 0)
 
     // Leva controls for VAT custom uniforms
     const vatUniforms = useControls('VAT.Uniforms', {
@@ -65,7 +67,9 @@ export default function Scene() {
         metalness: 0.05,
         clearcoat: 0,
         sheen: 0,
-    }), [])
+        normalMap: normalMapTex,
+        normalScale: new THREE.Vector2(4, 4),
+    }), [normalMapTex])
     
     const customUniforms = useMemo(() => ({
         uColor: { value: new THREE.Vector3(1.0, 0.0, 0.0) },
@@ -154,7 +158,7 @@ export default function Scene() {
 
 
                     // Use the instanced mesh
-                    <VATInstancedMesh
+                    {/* <VATInstancedMesh
                         scene={scene}
                         posTex={posTex}
                         nrmTex={nrmTex}
@@ -168,7 +172,7 @@ export default function Scene() {
                         materialConfig={materialConfig}
                         shaders={shaders}
                         customUniforms={customUniforms}
-                    />
+                    /> */}
                 </>
             )}
         </>

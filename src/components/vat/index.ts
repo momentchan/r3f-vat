@@ -20,9 +20,8 @@ export type { VATInstancedMeshProps } from './VATInstancedMesh'
 export {
   ensureUV2ForVAT,
   calculateVATFrame,
-  setupVATMaterials,
-  cloneAndSetupVATScene,
   extractGeometryFromScene,
+  createVATMesh,
   createVATInstancedMesh
 } from './utils'
 

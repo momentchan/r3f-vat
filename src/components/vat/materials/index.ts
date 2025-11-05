@@ -28,8 +28,8 @@ export function createVATMaterial(
     ...(customUniforms || {})
   }
 
-  // Only pass valid Three.js material properties
-  const threeJsMaterialProps = {
+  // Standard Three.js material properties
+  const threeJsMaterialProps: any = {
     roughness: materialProps.roughness,
     metalness: materialProps.metalness,
     transmission: materialProps.transmission,
@@ -48,6 +48,51 @@ export function createVATMaterial(
     attenuationDistance: materialProps.attenuationDistance,
     attenuationColor: new THREE.Color(materialProps.attenuationColor),
     bumpScale: materialProps.bumpScale,
+  }
+
+  // Handle extra properties like normalMap, envMap, etc. generically
+  const materialPropsAny = materialProps as any
+  
+  // Handle normalMap and normalScale FIRST (before other properties)
+  // This ensures proper initialization order
+  if (materialPropsAny.normalMap instanceof THREE.Texture) {
+    // Ensure normalScale exists before setting normalMap
+    if (materialPropsAny.normalScale instanceof THREE.Vector2) {
+      threeJsMaterialProps.normalScale = materialPropsAny.normalScale
+    } else if (materialPropsAny.normalScale && typeof materialPropsAny.normalScale === 'object' && ('x' in materialPropsAny.normalScale || 'y' in materialPropsAny.normalScale)) {
+      threeJsMaterialProps.normalScale = new THREE.Vector2(
+        materialPropsAny.normalScale.x ?? 1,
+        materialPropsAny.normalScale.y ?? 1
+      )
+    } else {
+      threeJsMaterialProps.normalScale = new THREE.Vector2(1, 1)
+    }
+    threeJsMaterialProps.normalMap = materialPropsAny.normalMap
+  }
+  
+  // Handle other extra properties
+  for (const key in materialPropsAny) {
+    // Skip if it's already in threeJsMaterialProps or is an internal VAT property
+    if (key in threeJsMaterialProps) continue
+    if (key === 'iridescenceThicknessMin' || key === 'iridescenceThicknessMax') continue
+    if (key === 'normalMap' || key === 'normalScale') continue // Already handled above
+    
+    const value = materialPropsAny[key]
+    if (value !== undefined) {
+      // Handle Three.js types directly
+      if (
+        value instanceof THREE.Texture ||
+        value instanceof THREE.Vector2 ||
+        value instanceof THREE.Vector3 ||
+        value instanceof THREE.Color
+      ) {
+        threeJsMaterialProps[key] = value
+      }
+      // Handle other primitives
+      else if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string' || Array.isArray(value)) {
+        threeJsMaterialProps[key] = value
+      }
+    }
   }
 
   return new CustomShaderMaterial({
