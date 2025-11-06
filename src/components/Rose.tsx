@@ -10,6 +10,7 @@ import blending from "@packages/r3f-gist/shaders/cginc/math/blending.glsl"
 import simplexNoise from "@packages/r3f-gist/shaders/cginc/noise/simplexNoise.glsl"
 import utility from "@packages/r3f-gist/shaders/cginc/math/utility.glsl"
 import vat from "./vat/shaders/vat.glsl"
+import { useIntersectionUV } from "./IntersectionContext";
 
 export default function Rose() {
     const { scene, posTex, nrmTex, meta, isLoaded } = useVATPreloader('/vat/Rose_meta.json')
@@ -37,7 +38,7 @@ export default function Rose() {
 
     const renderControls = useControls('VAT.Render', {
         useInstanced: { value: true, label: 'Use Instanced Mesh' },
-        instanceCount: { value: 20, min: 1, max: 10000, step: 100, label: 'Instance Count' },
+        instanceCount: { value: 100, min: 1, max: 10000, step: 100, label: 'Instance Count' },
     }, { collapsed: true })
 
     const stateDurationsControls = useControls('VAT.Frame States', {
@@ -52,15 +53,26 @@ export default function Rose() {
     }, { collapsed: true })
 
     // Instance data for instanced mesh (ready for future use)
+    const planeUV = useMemo(() => {
+        const planeUV = new Float32Array(renderControls.instanceCount * 2)
+        for (let i = 0; i < renderControls.instanceCount; i++) {
+            planeUV[i * 2] = Math.random()
+            planeUV[i * 2 + 1] = Math.random()
+        }
+        return planeUV
+    }, [renderControls.instanceCount])
+
+
     const positions = useMemo(() => {
         const positions = new Float32Array(renderControls.instanceCount * 3)
         for (let i = 0; i < renderControls.instanceCount; i++) {
-            positions[i * 3] = Math.random() * 2
+            positions[i * 3] = (planeUV[i * 2] - 0.5) * 2
             positions[i * 3 + 1] = 0
-            positions[i * 3 + 2] = Math.random() * 2
+            positions[i * 3 + 2] = (planeUV[i * 2 + 1] - 0.5) * 2
         }
         return positions
-    }, [renderControls.instanceCount])
+    }, [renderControls.instanceCount, planeUV])
+    
     const rotations = useMemo(() => {
         const rotations = new Float32Array(renderControls.instanceCount * 3)
         for (let i = 0; i < renderControls.instanceCount; i++) {
@@ -216,6 +228,9 @@ export default function Rose() {
         return null;
     }
 
+    // Get intersection UV from InteractivePlane
+    const intersectionUVRef = useIntersectionUV();
+
     // Use FBO compute shader to calculate per-instance frame values
     const frameTexture = useFrameCompute({
         instanceCount: renderControls.instanceCount,
@@ -228,6 +243,8 @@ export default function Rose() {
             state2: { min: stateDurationsControls.state2Min, max: stateDurationsControls.state2Max },
             state3: { min: stateDurationsControls.state3Min, max: stateDurationsControls.state3Max },
         },
+        planeUVs: planeUV,
+        intersectionUV: intersectionUVRef,
     })
 
     return (<>

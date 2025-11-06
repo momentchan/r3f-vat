@@ -4,22 +4,22 @@ import EnvironmentSetup from "./EnvironmentSetup";
 import Lights from "./Lights";
 import Rose from "./Rose";
 import Effects from "./Effects";
+import InteractivePlane from "./InteractivePlane";
+import { IntersectionProvider } from "./IntersectionContext";
 
 export default function Scene() {
 
 
     return (
-        <>
+        <IntersectionProvider>
             <color attach="background" args={['#000000']} />
             <Lights />
             <EnvironmentSetup />
             {/* <fogExp2 attach="fog" args={['#000000', 0.05]} /> */}
             <Effects />
 
-            <mesh rotation-x={-Math.PI / 2} receiveShadow>
-                <planeGeometry args={[10, 10]} />
-                <meshStandardMaterial color="white" />
-            </mesh>
+            <InteractivePlane />
+
 
             {/* <mesh castShadow receiveShadow>
                 <boxGeometry args={[1, 1, 1]} />
@@ -31,7 +31,7 @@ export default function Scene() {
             <CanvasCapture />
 
             <Rose />
-        </>
+        </IntersectionProvider>
     )
 }
 
