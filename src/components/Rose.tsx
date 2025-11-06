@@ -35,8 +35,8 @@ export default function Rose() {
     }, { collapsed: true })
 
     const renderControls = useControls('VAT.Render', {
-        useInstanced: { value: false, label: 'Use Instanced Mesh' },
-        instanceCount: { value: 1000, min: 1, max: 10000, step: 100, label: 'Instance Count' },
+        useInstanced: { value: true, label: 'Use Instanced Mesh' },
+        instanceCount: { value: 100, min: 1, max: 10000, step: 100, label: 'Instance Count' },
     }, { collapsed: true })
 
     // Instance data for instanced mesh (ready for future use)
@@ -53,7 +53,7 @@ export default function Rose() {
         const rotations = new Float32Array(renderControls.instanceCount * 3)
         for (let i = 0; i < renderControls.instanceCount; i++) {
             rotations[i * 3] = 0
-            rotations[i * 3 + 1] = 0
+            rotations[i * 3 + 1] = Math.random() * 2 * Math.PI
             rotations[i * 3 + 2] = 0
         }
         return rotations
@@ -61,9 +61,10 @@ export default function Rose() {
     const scales = useMemo(() => {
         const scales = new Float32Array(renderControls.instanceCount * 3)
         for (let i = 0; i < renderControls.instanceCount; i++) {
-            scales[i * 3] = 1
-            scales[i * 3 + 1] = 1
-            scales[i * 3 + 2] = 1
+            const size = (Math.random() * 0.5 + 0.8) * 5
+            scales[i * 3] = size
+            scales[i * 3 + 1] = size
+            scales[i * 3 + 2] = size
         }
         return scales
     }, [renderControls.instanceCount])
@@ -96,8 +97,11 @@ export default function Rose() {
             uniform float uNormalStrength;
             uniform vec2 uNoiseScale;
             
+            attribute float instanceSeed;
+            
             varying vec2 vUv;
             varying vec3 vMask;
+            varying float vInstanceSeed;
             
             ${vat}
             ${simplexNoise}
@@ -105,12 +109,17 @@ export default function Rose() {
             
             void main() {
                 // Get the VAT position
-                vec3 vatPos = VAT_pos(uFrame);
+                // Offset frame by instance seed to create per-instance animation variation
+                // uFrame is normalized (0-1), so we add seed offset and wrap with mod
+                float frameOffset = instanceSeed; // Each instance starts at different point in animation
+                float frame = mod(uFrame + frameOffset, 1.0);
+                
+                vec3 vatPos = VAT_pos(frame);
                 vec3 basePos = position;
                 vec3 position = (basePos + vatPos);
                 
                 // Get the VAT normal
-                vec3 normal = VAT_nrm(uFrame);
+                vec3 normal = VAT_nrm(frame);
                 
                 // Compute masks
                 float epsilon = 0.05;
@@ -123,6 +132,7 @@ export default function Rose() {
                 vUv = uv;
                 vUv1 = uv1;
                 vColor = color.rgb;
+                vInstanceSeed = instanceSeed;
             }
         `,
 
@@ -142,6 +152,7 @@ export default function Rose() {
             varying vec2 vUv1;
             varying vec3 vColor;
             varying vec3 vMask;
+            varying float vInstanceSeed;
             
             uniform sampler2D uPetalTex;
             uniform sampler2D uOutlineTex;
@@ -159,21 +170,25 @@ export default function Rose() {
                 vec2 uv = vUv;
                 uv.x = (uv.x - 0.5) * 0.8 + 0.5;
                 vec4 outline = texture2D(uOutlineTex, vUv);
+
+                float seed = vInstanceSeed;
                 
                 // Use masks computed in vertex shader
                 float petalMask = vMask.x;
                 float leafMask = vMask.y;
                 float stemMask = vMask.z;
                 
-                vec4 petalCol = texture2D(uPetalTex, uv);
+                vec4 petalCol =  texture2D(uPetalTex, uv);
+
+                petalCol.rgb = HSVShift(petalCol.rgb, vec3(seed * 0.02, 0.0, mod(seed * 25.0, 1.0) * -0.1));
                 petalCol.rgb = mix(HSVShift(petalCol.rgb, vec3(0.0, 0.0, -.1)), petalCol.rgb, outline.rgb);
 
-                float n = remap(fbm2(vUv * uNoiseScale, 0.0), vec2(-1.0, 1.0), vec2(0.0, 1.0));
+                // Use instance seed to offset noise for per-instance variation
+                float n = remap(fbm2(vUv * uNoiseScale, vInstanceSeed * 100.0), vec2(-1.0, 1.0), vec2(0.0, 1.0));
 
                 vec3 stemfCol = mix(uGreen1, uGreen2, n);
                 vec3 finalColor = petalCol.rgb * petalMask + stemfCol * leafMask + stemfCol * stemMask;
                 
-
                 csm_DiffuseColor = vec4(finalColor, petalCol.a);
             }
         `
@@ -191,7 +206,7 @@ export default function Rose() {
                 nrmTex={nrmTex}
                 metaData={meta}
                 count={renderControls.instanceCount}
-                frameRatio={0.5}
+                // frameRatio={0.5}
                 positions={positions}
                 rotations={rotations}
                 scales={scales}

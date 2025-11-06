@@ -211,6 +211,13 @@ export function createVATInstancedMesh(
 
   const instancedMesh = new THREE.InstancedMesh(geometry, vatMaterial, instanceCount)
   
+  // Create random seed attribute for each instance
+  const seedArray = new Float32Array(instanceCount)
+  for (let i = 0; i < instanceCount; i++) {
+    seedArray[i] = Math.random()
+  }
+  instancedMesh.geometry.setAttribute('instanceSeed', new THREE.InstancedBufferAttribute(seedArray, 1))
+  
   if (vatDepthMaterial) {
     instancedMesh.customDepthMaterial = vatDepthMaterial
   }
