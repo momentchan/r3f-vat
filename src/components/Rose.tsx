@@ -38,12 +38,12 @@ export default function Rose() {
 
     const renderControls = useControls('VAT.Render', {
         useInstanced: { value: true, label: 'Use Instanced Mesh' },
-        instanceCount: { value: 100, min: 1, max: 10000, step: 100, label: 'Instance Count' },
+        instanceCount: { value: 1000, min: 1, max: 10000, step: 100, label: 'Instance Count' },
     }, { collapsed: true })
 
     const stateDurationsControls = useControls('VAT.Frame States', {
-        state0Min: { value: 3, min: 0, max: 10, step: 0.1, label: 'State 0: Stay at 0 - Min (s)' },
-        state0Max: { value: 3, min: 0, max: 10, step: 0.1, label: 'State 0: Stay at 0 - Max (s)' },
+        state0Min: { value: 0, min: 0, max: 10, step: 0.1, label: 'State 0: Stay at 0 - Min (s)' },
+        state0Max: { value: 0, min: 0, max: 10, step: 0.1, label: 'State 0: Stay at 0 - Max (s)' },
         state1Min: { value: 3, min: 0, max: 10, step: 0.1, label: 'State 1: 0→1 - Min (s)' },
         state1Max: { value: 3, min: 0, max: 10, step: 0.1, label: 'State 1: 0→1 - Max (s)' },
         state2Min: { value: 3, min: 0, max: 10, step: 0.1, label: 'State 2: Stay at 1 - Min (s)' },
@@ -71,7 +71,7 @@ export default function Rose() {
             positions[i * 3 + 2] = (planeUV[i * 2 + 1] - 0.5) * 2
         }
         return positions
-    }, [renderControls.instanceCount, planeUV])
+    }, [planeUV])
     
     const rotations = useMemo(() => {
         const rotations = new Float32Array(renderControls.instanceCount * 3)
@@ -252,7 +252,7 @@ export default function Rose() {
                 nrmTex={nrmTex}
                 metaData={meta}
                 count={renderControls.instanceCount}
-                // frameRatio={0.5}
+                frameRatio={-1}
                 positions={positions}
                 rotations={rotations}
                 scales={scales}

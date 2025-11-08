@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useFBO } from '@react-three/drei'
 import { VATMeta } from '../types'
 import frameComputeShader from '../shaders/frameCompute.glsl'
-import type React from 'react'
+import { useIntersectionUV } from '../../IntersectionContext'
 
 interface UseFrameComputeParams {
   instanceCount: number
@@ -21,7 +21,6 @@ interface UseFrameComputeParams {
   }
   animated?: Float32Array | boolean // Optional: per-instance animated flags, or boolean for all instances
   planeUVs?: Float32Array // Optional: per-instance plane UVs (2 values per instance: u, v)
-  intersectionUV?: THREE.Vector2 | null | React.MutableRefObject<THREE.Vector2 | null> // Optional: single intersection UV from InteractivePlane (can be ref)
 }
 
 /**
@@ -38,9 +37,9 @@ export function useFrameCompute({
   stateDurations = {},
   animated,
   planeUVs,
-  intersectionUV,
 }: UseFrameComputeParams) {
   const { gl } = useThree()
+  const intersectionUVRef = useIntersectionUV();
   
   // Calculate texture dimensions (1D array: width = instanceCount, height = 1)
   const textureWidth = instanceCount
@@ -111,22 +110,20 @@ export function useFrameCompute({
     if (!planeUVs || planeUVs.length === 0) {
       return null
     }
-    
-    // Ensure we have enough data (2 values per instance: u, v)
-    const requiredLength = instanceCount * 2
-    const uvData = planeUVs.length >= requiredLength
-      ? planeUVs.slice(0, requiredLength)
-      : new Float32Array(requiredLength)
-
     // Create RG format texture (2 channels: u, v)
     const texture = new THREE.DataTexture(
-      uvData,
+      planeUVs,
       instanceCount,
       1,
       THREE.RGFormat,
       THREE.FloatType
     )
     texture.needsUpdate = true
+    texture.minFilter = THREE.NearestFilter
+    texture.magFilter = THREE.NearestFilter
+    texture.wrapS = THREE.ClampToEdgeWrapping
+    texture.wrapT = THREE.ClampToEdgeWrapping
+
     return texture
   }, [planeUVs, instanceCount])
 
@@ -200,12 +197,10 @@ export function useFrameCompute({
         uFps: { value: metaData.fps || 24 },
         uFrameRatio: { value: frameRatio !== undefined ? frameRatio : -1 },
         uInstanceSeeds: { value: instanceSeedsTexture || null },
-        uHasInstanceSeeds: { value: instanceSeedsTexture ? 1.0 : 0.0 },
         uPreviousFrame: { value: pingTarget.texture }, // Previous frame texture (ping-pong)
         uInstanceCount: { value: instanceCount }, // For texture sampling
         uStateDurations: { value: stateDurationsTexture }, // Per-instance state durations texture
         uPlaneUVs: { value: planeUVsTexture || null }, // Per-instance plane UVs texture
-        uHasPlaneUVs: { value: planeUVsTexture ? 1.0 : 0.0 },
         uIntersectionUV: { value: new THREE.Vector2(-1, -1) }, // Single intersection UV from InteractivePlane (-1, -1 if not set, updated in useFrame)
       },
       vertexShader: /* glsl */ `
@@ -217,8 +212,9 @@ export function useFrameCompute({
       `,
       fragmentShader: frameComputeShader,
     })
+
     return material
-  }, [vatSpeed, metaData, frameRatio, instanceSeedsTexture, pingTarget.texture, instanceCount, stateDurationsTexture, planeUVsTexture, intersectionUV])
+  }, [vatSpeed, metaData, frameRatio, instanceSeedsTexture, pingTarget.texture, instanceCount, stateDurationsTexture, planeUVsTexture])
   
   // Create mesh for compute shader
   const computeMesh = useMemo(() => {
@@ -231,20 +227,15 @@ export function useFrameCompute({
   useEffect(() => {
     if (computeMaterial.uniforms.uInstanceSeeds && instanceSeedsTexture) {
       computeMaterial.uniforms.uInstanceSeeds.value = instanceSeedsTexture
-      computeMaterial.uniforms.uHasInstanceSeeds.value = 1.0
       computeMaterial.needsUpdate = true
-    } else if (computeMaterial.uniforms.uHasInstanceSeeds) {
-      computeMaterial.uniforms.uHasInstanceSeeds.value = 0.0
     }
   }, [computeMaterial, instanceSeedsTexture])
   
   // Initialize first frame with default values using useEffect
   useEffect(() => {
     const currentRenderTarget = gl.getRenderTarget()
-    const currentXrEnabled = gl.xr.enabled
-    const currentShadowAutoUpdate = gl.shadowMap.autoUpdate
+    const previousShadowAutoUpdate = gl.shadowMap.autoUpdate
     
-    gl.xr.enabled = false
     gl.shadowMap.autoUpdate = false
     
     // Initialize animated flags if provided, otherwise default to 0 (not animated)
@@ -261,7 +252,7 @@ export function useFrameCompute({
           isAnimated = animated[i] > 0.5 ? 1 : 0
         }
       }
-      isAnimated = 1;
+      isAnimated = 0;
       
         // Initialize: frame=0, animated=isAnimated, blue=0, cycleProgress=0
         pingData[i * 4 + 0] = 0 // R: frame
@@ -323,8 +314,7 @@ export function useFrameCompute({
     pongInitTex.dispose()
     
     gl.setRenderTarget(currentRenderTarget)
-    gl.xr.enabled = currentXrEnabled
-    gl.shadowMap.autoUpdate = currentShadowAutoUpdate
+    gl.shadowMap.autoUpdate = previousShadowAutoUpdate
   }, [gl, instanceCount, animated, pingTarget, pongTarget, computeScene, quadGeometry])
   
   // Update uniforms and render to FBO each frame with ping-pong
@@ -335,10 +325,12 @@ export function useFrameCompute({
     if (computeMaterial.uniforms.uDeltaTime) {
       computeMaterial.uniforms.uDeltaTime.value = delta
     }
+
+    computeMaterial.uniforms.uPlaneUVs.value = planeUVsTexture
     
     // Update intersection UV uniform
     if (computeMaterial.uniforms.uIntersectionUV) {
-      const currentUV = intersectionUV && 'current' in intersectionUV ? intersectionUV.current : intersectionUV
+      const currentUV = intersectionUVRef.current
       if (currentUV) {
 
         computeMaterial.uniforms.uIntersectionUV.value.set(currentUV.x, currentUV.y)
@@ -346,7 +338,8 @@ export function useFrameCompute({
         computeMaterial.uniforms.uIntersectionUV.value.set(-1, -1)
       }
     }
-    
+
+    // computeMaterial.uniforms.uIntersectionUV.value.set(_state.pointer.x, _state.pointer.y)
     // Update previous frame texture uniform (read from current read target)
     if (computeMaterial.uniforms.uPreviousFrame) {
       computeMaterial.uniforms.uPreviousFrame.value = readTargetRef.current.texture
@@ -354,18 +347,12 @@ export function useFrameCompute({
     
     // Render to write target (ping-pong)
     const currentRenderTarget = gl.getRenderTarget()
-    const currentXrEnabled = gl.xr.enabled
-    const currentShadowAutoUpdate = gl.shadowMap.autoUpdate
     
-    gl.xr.enabled = false
-    gl.shadowMap.autoUpdate = false
     gl.setRenderTarget(writeTargetRef.current)
     gl.clear()
     gl.render(computeScene, computeCamera)
     gl.setRenderTarget(currentRenderTarget)
     
-    gl.xr.enabled = currentXrEnabled
-    gl.shadowMap.autoUpdate = currentShadowAutoUpdate
     
     // Swap ping-pong targets for next frame
     const temp = readTargetRef.current
