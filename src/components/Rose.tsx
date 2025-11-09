@@ -16,12 +16,12 @@ import { generateHalton2D } from "@packages/r3f-gist/utils";
 export default function Rose() {
     const { scene, posTex, nrmTex, meta, isLoaded } = useVATPreloader('/vat/Rose_meta.json')
 
-    const petalTex = useTexture('/textures/Rose Petal DIff.png')
+    const petalTex = useTexture('/textures/Rose/Rose_Petal_Diff.png')
     petalTex.colorSpace = THREE.SRGBColorSpace
 
-    const outlineTex = useTexture('/textures/Rose Outline.png')
+    const outlineTex = useTexture('/textures/Rose/Rose_Outline.png')
 
-    const normalMapTex = useTexture('/textures/Rose Petal Normal.png')
+    const normalMapTex = useTexture('/textures/Rose/Rose_Petal_Normal.png')
     normalMapTex.repeat.set(0.8, 1)
     normalMapTex.offset.set(0.1, 0)
 
