@@ -11,7 +11,7 @@ import { useLoadedFileCount } from "@packages/r3f-gist/hooks";
 export default function Scene() {
     return (
         <IntersectionProvider>
-            <color attach="background" args={['#000000']} />
+            <color attach="background" args={['#171717']} />
             <Lights />
             <EnvironmentSetup />
             {/* <fogExp2 attach="fog" args={['#000000', 0.05]} /> */}

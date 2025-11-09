@@ -29,12 +29,7 @@ export default function Rose() {
     const vatUniforms = useControls('VAT.Uniforms', {
         uGreen1: { value: '#325825', label: 'Green 1' },
         uGreen2: { value: '#4f802b', label: 'Green 2' },
-    }, { collapsed: true })
-
-    const noiseControls = useControls('VAT.Noise Effects', {
-        displacementStrength: { value: 0.1, min: 0, max: 1, step: 0.01, label: 'Displacement Strength' },
-        normalStrength: { value: 0.5, min: 0, max: 2, step: 0.1, label: 'Normal Strength' },
-        noiseScale: { value: { x: 5, y: 20 }, label: 'Noise Scale' },
+        uHueShift: { value: 0, min: -1, max: 1, step: 0.01, label: 'Hue Shift' },
     }, { collapsed: true })
 
     const renderControls = useControls('VAT.Render', {
@@ -126,12 +121,10 @@ export default function Rose() {
         uPetalTex: { value: petalTex },
         uOutlineTex: { value: outlineTex },
         // Noise uniforms
-        uDisplacementStrength: { value: noiseControls.displacementStrength },
-        uNormalStrength: { value: noiseControls.normalStrength },
-        uNoiseScale: { value: new THREE.Vector2(noiseControls.noiseScale.x, noiseControls.noiseScale.y) },
         uPlaneUVTexture: { value: planeUVTexture },
         uTime: { value: 0 },
-    }), [petalTex, vatUniforms.uGreen1, vatUniforms.uGreen2, outlineTex, noiseControls, planeUVTexture])
+        uHueShift: { value: vatUniforms.uHueShift },
+    }), [petalTex, vatUniforms.uGreen1, vatUniforms.uGreen2, outlineTex, vatUniforms.uHueShift, planeUVTexture])
 
     useFrame((state) => {
         if (customUniforms?.uTime) {
@@ -142,15 +135,10 @@ export default function Rose() {
     // Memoize shader code separately - this should never change
     const shaders = useMemo(() => ({
         vertexShader: /* glsl */ `
-            uniform float uDisplacementStrength;
-            uniform float uNormalStrength;
-            uniform vec2 uNoiseScale;
             uniform sampler2D uFrameTexture; // Texture containing per-instance frame values
             uniform sampler2D uPlaneUVTexture; // Texture containing per-instance plane UVs
             uniform float uInstanceCount; // Total number of instances
             uniform float uTime;
-
-            
             attribute float instanceSeed;
             attribute float instanceID; // Instance index (0 to instanceCount-1)
 
@@ -228,6 +216,7 @@ export default function Rose() {
             uniform vec3 uStemColor;
             uniform float uNormalStrength;
             uniform vec2 uNoiseScale;
+            uniform float uHueShift;    
             
             varying vec2 vUv;
             varying vec2 vUv1;
@@ -262,7 +251,7 @@ export default function Rose() {
                 
                 vec4 petalCol =  texture2D(uPetalTex, uv);
 
-                petalCol.rgb = HSVShift(petalCol.rgb, vec3(seed * (0.02 + smoothstep(0.6, 1.0, vProgress) * 0.03), 0.0, mod(seed * 25.0, 1.0) * -0.1));
+                petalCol.rgb = HSVShift(petalCol.rgb, vec3(seed * (0.02 + smoothstep(0.6, 1.0, vProgress) * 0.03) + uHueShift, 0.0, mod(seed * 25.0, 1.0) * -0.1));
                 petalCol.rgb = mix(HSVShift(petalCol.rgb, vec3(0.0, 0.0, -.1)), petalCol.rgb, outline.rgb);
 
                 // Use instance seed to offset noise for per-instance variation
@@ -273,11 +262,9 @@ export default function Rose() {
                 
                 float dieOut = mix(0.1, 1.0, smoothstep(1.0, 0.6, vProgress));
                 csm_DiffuseColor = vec4(finalColor * dieOut, petalCol.a);
-
-                // csm_FragColor = vec4(vWpos.xz, 0.0, 1.0);
             }
         `
-    }), [noiseControls])
+    }), [])
 
     if (!isLoaded || !scene || !posTex || !nrmTex || !meta) {
         return null;

@@ -53,11 +53,6 @@ export default function InteractivePlane() {
     const { raycaster, pointer, camera } = useThree();
     const intersectionUVRef = useIntersectionUV();
     const asphaltTextures = useTexture({
-        // map: '/textures/Aerial/aerial_grass_rock_diff_1k.png',
-        // aoMap: '/textures/Aerial/aerial_grass_rock_ao_1k.png',
-        // displacementMap: '/textures/Aerial/aerial_grass_rock_disp_1k.png',
-        // normalMap: '/textures/Aerial/aerial_grass_rock_nor_gl_1k.png',
-        // roughnessMap: '/textures/Aerial/aerial_grass_rock_rough_1k.png',
         map: '/textures/Asphalt/asphalt_06_diff_1k.png',
         aoMap: '/textures/Asphalt/asphalt_06_ao_1k.png',
         displacementMap: '/textures/Asphalt/asphalt_06_disp_1k.png',
@@ -122,6 +117,7 @@ export default function InteractivePlane() {
 
     const handlePointerMove = () => {
         if (!meshRef.current) return;
+        document.body.style.cursor = 'none';
 
         raycaster.setFromCamera(pointer, camera);
 
@@ -159,6 +155,7 @@ export default function InteractivePlane() {
             onPointerOut={() => {
                 intersectionUVRef.current = null;
                 uniforms.uHasIntersection.value = 0;
+                document.body.style.cursor = 'default';
             }}
         >
             <boxGeometry
@@ -188,6 +185,7 @@ export default function InteractivePlane() {
                 roughness={roughness}
                 normalScale={normalScaleVector}
                 color="white"
+                silent={true}
             />
         </mesh>
     )
